@@ -1,0 +1,4 @@
+tickrate = 100234
+generator_rate = 1
+min_pt = 20
+max_pt = 100

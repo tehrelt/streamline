@@ -1,0 +1,152 @@
+@startuml classes
+
+class Item {
+  int id 
+  int process_time
+}
+
+abstract class Model {
+  -int _id
+  +Model(int id)
+  +int id()
+}
+
+abstract class ItemReceiver {
+  +void recv(Item* item)
+  +bool is_overflow()
+}
+
+class Outputable {
+  #OutputSocket _output
+  +void set_output_to(ItemReceiver* r)
+}
+
+class ItemProducer {
+  #ItemReceiver* _out
+  +void set_output_to(ItemReceiver* r)
+}
+
+abstract class Runnable {
+  #int _processed_in_ticks
+  #int _ticks_in_wait
+  +Subject<TickInfo> on_tick
+  #void do_tick()
+  +void run()
+  +void reset_stat()
+  +int processed_ticks() const
+  +int ticks_in_wait() const
+  +double avg_wait_time() const
+}
+
+class Subject<T> {
+  -vector<function<void T>> fns
+  +attach(function<void T> fn)
+  +detach(function<void T> fn)
+  +notify(T data)
+}
+
+class Generator {
+  -int _rate
+  -GeneratorState _state
+  -Item* _item
+  -int _progress
+	+Subject<int> on_rate_change
+	+Subject<int> on_progress_change
+	+Subject<GeneratorState> on_state_change
+  -void set_state(GeneratorState state)
+  #void do_tick() override
+  +Generator()
+  +Generator(int rate)
+  +GeneratorState state() const
+  +int rate() const
+  +bool is_working() const
+  +void set_rate(int r)
+  +void set_progress(int p)
+	+void start()
+	+void stop()
+  +{static} int CREATED
+}
+Generator --|> Model
+Generator --|> Outputable
+Generator -left-|> Runnable
+
+class Streamline {
+  - Queue<Item*> _queue
+  # void do_tick()
+  + Streamline(int capacity)
+  + void set_cap(int new_cap)
+  + Queue<Item*>& queue()
+  + Subject<Queue<Item*>&> on_change
+  + Subject<Item*> on_recv
+  + Subject<Item*> on_push
+  + void recv(Item* item)
+  + bool is_overflow()
+  + static int CREATED
+}
+Streamline -left-|> Model
+Streamline --|> ItemProducer 
+Streamline --|> ItemReceiver
+Streamline -down-|> Runnable
+
+enum WorkstationState {
+  WS_Stop
+  WS_Idle
+  WS_Process
+}
+
+enum ProgressState {
+  PS_Empty
+  PS_Processing
+  PS_Ready
+  PS_Gone
+}
+
+class WorkstationProgress {
+  ProgressState state
+  int item_id
+  int tick_elapsed
+  int tick_estimate
+}
+
+class Workstation {
+  - Item* _item
+  - WorkstationState _state
+  - int _multiplier
+  - int _remaining_time
+  - std::mutex _m
+  - int tick_passed = 0
+  - void set_remaining_time(int rt)
+  - void set_state(WorkstationState new_state)
+  # void do_tick()
+  + Workstation()
+  + Workstation(int multiplier)
+  + Subject<WorkstationState> on_state_change
+  + Subject<WorkstationProgress> on_progress
+  + int remaining_time()
+  + void start()
+  + void stop()
+  + static int CREATED
+  + void recv(Item* item)
+  + bool is_overflow()
+  + friend std::ostream& operator<<(std::ostream& s, const Workstation& ws)
+  + friend std::ostream& operator<<(std::ostream& s, const Workstation* ws)
+}
+Workstation -left-|> Model 
+Workstation -right-|> ItemReceiver
+Workstation -up-|> Outputable
+Workstation -down-|> Runnable
+Workstation --* WorkstationState
+Workstation --* Subject
+Workstation --> WorkstationProgress
+
+class Storage {
+  -int _stored
+  +Subject<int> on_stored_change
+  -void set_stored(int s)
+  +void recv(Item* item)
+  +bool is_overflow()
+}
+Storage --|> ItemReceiver
+Storage -up-* Subject
+
+@enduml

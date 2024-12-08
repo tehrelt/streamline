@@ -1,0 +1,6 @@
+===== CONFIG LOADED ======
+max_pt = 100
+tickrate = 100234
+generator_rate = 1
+min_pt = 20
+==========================
